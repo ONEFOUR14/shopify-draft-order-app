@@ -2,16 +2,23 @@ const { Shopify } = require('@shopify/shopify-api');
 
 module.exports = async (req, res) => {
   const body = req.body;
-  const session = await Shopify.Utils.loadOfflineSession(process.env.SHOP);
+  const shop = process.env.SHOP.replace('https://', '');
+  const token = process.env.SHOPIFY_ADMIN_TOKEN;
 
+  const client = new Shopify.Clients.Rest(shop, token);
   const draftOrderId = req.cookies.draft_order_id;
   if (!draftOrderId) return res.status(200).send('No draft order found');
 
-  const draftOrder = new Shopify.Rest.DraftOrder({ session });
-  draftOrder.id = draftOrderId;
-  if (body.email) draftOrder.email = body.email;
-  if (body.shipping_address) draftOrder.shipping_address = body.shipping_address;
+  await client.put({
+    path: `draft_orders/${draftOrderId}`,
+    data: {
+      draft_order: {
+        email: body.email || undefined,
+        shipping_address: body.shipping_address || undefined
+      }
+    },
+    type: 'json'
+  });
 
-  await draftOrder.save({ update: true });
   res.status(200).send('Draft order updated');
 };
